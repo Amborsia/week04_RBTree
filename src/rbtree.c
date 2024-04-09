@@ -6,14 +6,15 @@ node_t *right_rotate(rbtree *t, node_t *y);
 node_t *left_rotate(rbtree *t, node_t *x);
 void *insert_fixup(rbtree *t, node_t *x);
 void rb_transplant(rbtree *t, node_t *u, node_t *v);
-// node_t *tree_minimum(const rbtree *t, node_t *sub_root);
 void rb_delete_fixup(rbtree *t, node_t *x);
 
 rbtree *new_rbtree(void)
 {
   rbtree *p = (rbtree *)calloc(1, sizeof(rbtree));
   node_t *nil = (node_t *)calloc(1, sizeof(node_t));
+  // 노드 nil값을 하나를 만들어줘야 모든 nil값을 이리로 모을 수 있음
   nil->color = RBTREE_BLACK;
+  // 모든 nil노드는 black이기 때문에 색깔을 검정색으로 진행시킴
   p->nil = nil;
   p->root = nil;
   return p;
@@ -21,6 +22,7 @@ rbtree *new_rbtree(void)
 
 int rbtree_erase(rbtree *t, node_t *p)
 {
+  // 연산 시간은 O(logN)임
   node_t *y = p;
   node_t *x;
   int original = y->color;
@@ -71,67 +73,106 @@ int rbtree_erase(rbtree *t, node_t *p)
 
 void rb_delete_fixup(rbtree *t, node_t *x)
 {
-
+  // 경우의 수를 살펴보면
+  // case 1 -> case2-> case4
+  // case 1 -> case3-> case4
+  // case 1-> case4
+  // case 4
+  // case 2
+  // case 3-> case 4
   while (x != t->root && x->color == RBTREE_BLACK)
   {
     if (x == x->parent->left)
     {
-      node_t *w = x->parent->right;
-      if (w->color == RBTREE_RED)
+      node_t *sibling = x->parent->right;
+      // 더블리 블랙의 형제가 red인경우
+      //  해결법 부모를 기준으로 회전 근데 회전 전에 부모와 형제의 색깔을 바꿔줌
+      if (sibling->color == RBTREE_RED)
       {
-        w->color = RBTREE_BLACK;
+        // case 1
+        sibling->color = RBTREE_BLACK;
         x->parent->color = RBTREE_RED;
         left_rotate(t, x->parent);
-        w = x->parent->right;
+        sibling = x->parent->right;
+        // 이렇게 돌리고 나면 case 2,3,4를 체크해봐야 하므로 case1이 가장 상위단에 있어야함
+        // 모든 케이스를 다 돌리고 나서 확인을 할 수 있기 때문.
       }
-      if (w->left->color == RBTREE_BLACK && w->right->color == RBTREE_BLACK)
+      // 형제의 두 자녀가 모두 black인지를 체크해야함
+      if (sibling->left->color == RBTREE_BLACK && sibling->right->color == RBTREE_BLACK)
       {
-        w->color = RBTREE_RED;
+        // case 2
+        // 형제의 색깔을 레드로 바꿔 준 이후 부모에게 전달해야함
+        // 그리고서 부모에게 블랙에 대한 책임을 전가하고 비교 대상을 부모로 옮겨서
+        // 부모가 처리할 수 있도록 해야함
+        // 레드앤블랙인 경우 그냥 색깔만 바꾸고
+        // 더블리 블랙일때는 다시 그 노드가 루트냐 아니냐로 따지고
+        // 루트인 경우 블랙으로 변경,
+        // 루트가 아닌 경우 case1,2,3,4를 다시 적용
+        // 다시 적용해야하기에 while문을 통해서 다시 돌아가게끔 만듦
+        sibling->color = RBTREE_RED;
         x = x->parent;
       }
       else
       {
-        if (w->right->color == RBTREE_BLACK)
+        // 오른쪽 형제가 black이고,
+        //  그 형제의 왼쪽 자녀가 레드 이 조건은 위에 if문에서 해결이 될 것임
+        //  그리고 오른쪽 자녀가 블랙인 경우
+        if (sibling->right->color == RBTREE_BLACK)
         {
-          w->left->color = RBTREE_BLACK;
-          w->color = RBTREE_RED;
-          right_rotate(t, w);
-          w = x->parent->right;
+          // case3
+          // 왼쪽 자식은 검은색으로 변경, 오른쪽은 더블리 블랙이 될 것임
+          sibling->left->color = RBTREE_BLACK;
+          // 형제의 색깔은 색깔을 내려준것이니까 레드로 바뀌게 됨
+          sibling->color = RBTREE_RED;
+          // 이후 형제를 기준으로 오른쪽으로 회전시키게 됨
+          right_rotate(t, sibling);
+          // 형제는 다시 형제로 맞춰줘야하기 때문에 x의 형제의 오른쪽으로 진행하면 자기 자신이 나오게 됨
+          sibling = x->parent->right;
+          // 이후 케이스 4번을 적용해서 이 문제를 해결하면 됨
         }
-        w->color = x->parent->color;
+        // case 4
+        // 형제의 색깔을 부모의 색깔로 바꿔줌
+        sibling->color = x->parent->color;
+        // 부모의 색깔은 블랙으로 변경해줌
         x->parent->color = RBTREE_BLACK;
-        w->right->color = RBTREE_BLACK;
+        // 형제의 오른쪽 자식을 검은색으로 변경해줘야함
+        // 의문? 강의에서는 부모와 형제의 색깔을 변경하고 돌렸는데 여기는 그렇게 하지 않음
+        // 아마 결과론적으로 접근한게 코드가 더 짧아지기 때문에 그런 것 같음
+        sibling->right->color = RBTREE_BLACK;
+        // 이후 왼쪽으로 돌리고
         left_rotate(t, x->parent);
+        // x의 값을 루트로 만들어서 while문을 끝마치게 됨
         x = t->root;
       }
     }
     else
     {
-      node_t *w = x->parent->left;
-      if (w->color == RBTREE_RED)
+      // 이 밑으로는 위에서 얘기한 것의 반대로 진행하면 됨
+      node_t *sibling = x->parent->left;
+      if (sibling->color == RBTREE_RED)
       {
-        w->color = RBTREE_BLACK;
+        sibling->color = RBTREE_BLACK;
         x->parent->color = RBTREE_RED;
         right_rotate(t, x->parent);
-        w = x->parent->left;
+        sibling = x->parent->left;
       }
-      if (w->right->color == RBTREE_BLACK && w->left->color == RBTREE_BLACK)
+      if (sibling->right->color == RBTREE_BLACK && sibling->left->color == RBTREE_BLACK)
       {
-        w->color = RBTREE_RED;
+        sibling->color = RBTREE_RED;
         x = x->parent;
       }
       else
       {
-        if (w->left->color == RBTREE_BLACK)
+        if (sibling->left->color == RBTREE_BLACK)
         {
-          w->right->color = RBTREE_BLACK;
-          w->color = RBTREE_RED;
-          left_rotate(t, w);
-          w = x->parent->left;
+          sibling->right->color = RBTREE_BLACK;
+          sibling->color = RBTREE_RED;
+          left_rotate(t, sibling);
+          sibling = x->parent->left;
         }
-        w->color = x->parent->color;
+        sibling->color = x->parent->color;
         x->parent->color = RBTREE_BLACK;
-        w->left->color = RBTREE_BLACK;
+        sibling->left->color = RBTREE_BLACK;
         right_rotate(t, x->parent);
         x = t->root;
       }
@@ -142,9 +183,10 @@ void rb_delete_fixup(rbtree *t, node_t *x)
 
 void delete_rbtree(rbtree *t)
 {
-
+  // 루트 노드를 돌면서 nil값이 아니라면 계속 파고 들어가서 메모리를 없애야함
   if (t->root != t->nil)
     free_node(t, t->root);
+  // 마지막에는 트리와 nil값만이 존재하다보니 마지막에 삭제를 시켜야함
   free(t->nil);
   free(t);
 }
@@ -159,13 +201,17 @@ void free_node(rbtree *t, node_t *x)
   free(x);
   x = NULL;
 }
-// RB_delete(T,z)에서 삭제할 노드 z와 z를 대체 할 노드 y의 연결 관계를 바꿔주는 코드임
-// 부모의 연결관계만 바꿔주는 역할
-// 삭제할 노드 z와 대체 노드 y의 부모, 자식등을 연결 정보를 수정하는 방법을 사용
-// 대체노드y의 키값을 원래 삭제할 노드 z에 복사 후 대체 노드 y를 대신 삭제 시키는 방법도 있지만
-// 전자를 사용함.
+
 void rb_transplant(rbtree *t, node_t *u, node_t *v)
 {
+  // RB_delete(T,z)에서 삭제할 노드 z와 z를 대체 할 노드 y의 연결 관계를 바꿔주는 코드임
+  // 부모의 연결관계만 바꿔주는 역할
+  // 삭제할 노드 z와 대체 노드 y의 부모, 자식등을 연결 정보를 수정하는 방법을 사용
+  // 대체노드y의 키값을 원래 삭제할 노드 z에 복사 후 대체 노드 y를 대신 삭제 시키는 방법도 있지만
+  // 전자를 사용함.
+
+  // 일반적인 BST트리와의 차이점음 1행에서 NIL대신 경계노드인 t->nil값을 참고하고,
+
   if (u->parent == t->nil)
   {
     t->root = v;
@@ -178,6 +224,8 @@ void rb_transplant(rbtree *t, node_t *u, node_t *v)
   {
     u->parent->right = v;
   }
+  // 여기서 조건없이 v->p값을 할당한다.
+  //
   v->parent = u->parent;
 }
 
@@ -187,12 +235,18 @@ node_t *rbtree_find(const rbtree *t, const key_t key)
   node_t *x;
 
   x = t->root;
+  // x값 초기를 루트로 잡고 x가 nil이 아닐때까지 계속 반복
+  // nil이란 것은 값이 없는것이기 때문
   while (x != t->nil)
   {
+    // x->key가 key값이라는 이유는 값을 제대로 찾았다는 것을 의미함
+    //  그러면 x값 즉 노드를 반환해줌
     if (x->key == key)
     {
       return x;
     }
+    // x->key가 key보다 작다는 것은 그래프의 이진그래프의 특성상
+    // 오른쪽에 큰 값이 있기 때문에 오른쪽으로 계속 x를 이동시켜줌
     else if (x->key < key)
     {
       x = x->right;
@@ -202,35 +256,46 @@ node_t *rbtree_find(const rbtree *t, const key_t key)
       x = x->left;
     }
   }
+  // while문을 타지 않았다는 것 혹은 여기까지 왔다는 의미는
+  // 찾지 못했거나, 처음부터 x의 값은 nil값이기 때문에 null을 반환해줘야함
   return NULL;
 }
 
 node_t *rbtree_min(const rbtree *t)
 {
   node_t *temp = t->root;
+  // 노드를 루트로 잡아줌
   if (temp == t->nil)
   {
+    // root값이 nil값이라면 값이 아예 없는거니까 NULL값을 반환
     return NULL;
   }
+  // temp값의 왼쪽이 nil값이 아니라면 계속 왼쪽으로 이동
+  // 가장 작은 값이 왼쪽이기 때문에 최소값을 찾기 위해서는 왼쪽으로 와야함
   while (temp->left != t->nil)
   {
     temp = temp->left;
   }
-
+  // 가장 최소값의 노드를 반환해줌
   return temp;
 }
 
 node_t *rbtree_max(const rbtree *t)
 {
   node_t *temp = t->root;
+  // 노드를 루트로 잡아줌
   if (temp == t->nil)
   {
+    // root값이라면 값이 아예 없기때문에 NULL값을 반환
     return NULL;
   }
+  // temp값의 왼쪽이 nil값이 아니라면 계속 오른쪽으로 이동
+  // 가장 큰 값이 오른쪽이기 때문에 최댓값을 찾기 위해서는 오른쪽으로 계속해서 가야함
   while (temp->right != t->nil)
   {
     temp = temp->right;
   }
+  // 가장 최댓값의 노드를 반환해줌
   return temp;
 }
 
@@ -410,9 +475,12 @@ node_t *rbtree_insert(rbtree *t, const key_t key)
   {
     y->right = z;
   }
+  // 새로운 노드값에 대해서 삽입을 해야하니까
+  // z값을 초기화 시켜줌
   z->left = t->nil;
   z->right = t->nil;
   z->color = RBTREE_RED;
+  // 삽입할 때 색깔은 항상 레드이며 삽입 이후에는 fixup을 이용해야함
   insert_fixup(t, z);
   return t->root;
 }
