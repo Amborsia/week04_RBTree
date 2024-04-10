@@ -199,7 +199,7 @@ void free_node(rbtree *t, node_t *x)
     free_node(t, x->right);
 
   free(x);
-  x = NULL;
+  // x = NULL;
 }
 
 void rb_transplant(rbtree *t, node_t *u, node_t *v)
@@ -311,7 +311,7 @@ void *insert_fixup(rbtree *t, node_t *x)
       // 만약 부모의 색깔이 레드인 경우, 색깔을 바꿔줌
       if (right_uncle->color == RBTREE_RED)
       {
-        // 맨위가 블랙, 그 왼쪽,오른쪽이 레드 왼쪽의 왼쪽이 레드로 삽입된 케이스
+        // 맨위가 블랙, 그 왼쪽,오른쪽이 레드 루트 기준으로 왼쪽의 왼쪽이 레드로 삽입된 케이스
         // 그러면 맨위의 왼쪽오른쪽이 다 레드이고 맨위가 블랙이라서 색깔을 바꿔주면 되는 케이스가 됨
         x->parent->color = RBTREE_BLACK;
         right_uncle->color = RBTREE_BLACK;
