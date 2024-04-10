@@ -2,11 +2,12 @@
 
 #include <stdlib.h>
 
-node_t *right_rotate(rbtree *t, node_t *y);
-node_t *left_rotate(rbtree *t, node_t *x);
-void *insert_fixup(rbtree *t, node_t *x);
+void right_rotate(rbtree *t, node_t *y);
+void left_rotate(rbtree *t, node_t *x);
+void insert_fixup(rbtree *t, node_t *x);
 void rb_transplant(rbtree *t, node_t *u, node_t *v);
 void rb_delete_fixup(rbtree *t, node_t *x);
+void free_node(rbtree *t, node_t *x);
 
 rbtree *new_rbtree(void)
 {
@@ -299,7 +300,7 @@ node_t *rbtree_max(const rbtree *t)
   return temp;
 }
 
-void *insert_fixup(rbtree *t, node_t *x)
+void insert_fixup(rbtree *t, node_t *x)
 {
 
   while (x->parent->color == RBTREE_RED)
@@ -371,7 +372,7 @@ void *insert_fixup(rbtree *t, node_t *x)
   t->root->color = RBTREE_BLACK;
 }
 
-node_t *left_rotate(rbtree *t, node_t *x)
+void left_rotate(rbtree *t, node_t *x)
 {
   // 왼쪽으로 회전하는 것
   // x와 y값이 있다고 하면 y의 parent는 x인 상태
@@ -410,7 +411,7 @@ node_t *left_rotate(rbtree *t, node_t *x)
   x->parent = temp;
 }
 
-node_t *right_rotate(rbtree *t, node_t *y)
+void right_rotate(rbtree *t, node_t *y)
 {
   // y = temp, x= y
   node_t *temp = y->left;
